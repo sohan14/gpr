@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>report.html</h1>
+    <p>Report generated on 27-Jan-2023 at 16:10:08 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>/usr/lib/jvm/java-8-openjdk-amd64</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "1.0.0", "py": "1.11.0", "pytest": "7.1.1"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Linux-5.14.0-1054-oem-x86_64-with-glibc2.29</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"anyio": "3.5.0", "html": "3.1.1", "metadata": "2.0.1"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.8.10</td></tr></table>
+    <h2>Summary</h2>
+    <p>1 tests ran in 66.85 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">0 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">1 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">Tests/test_e2e.py::TestOne::test_e2e</td>
+          <td class="col-duration">66.36</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;Tests.test_e2e.TestOne object at 0x7f78a6994ca0&gt;<br/><br/>    @pytest.mark.default<br/>    def test_e2e(self):<br/>    <br/>        log = self.getLogger()<br/>        xdata = self.get_data(&#x27;user&#x27;)<br/>        ydata=self.get_data(&quot;db&quot;)<br/>        db=ydata[0]<br/>    <br/>        data = xdata[0]<br/>        data2 = xdata[1]<br/>        apidata= self.get_api(&#x27;api&#x27;)[0]<br/>        apidata_timer = self.get_api(&#x27;api&#x27;)[1]<br/>    <br/>        options = webdriver.ChromeOptions()<br/>        options.add_argument(&#x27;--allow-insecure-localhost&#x27;)  # differ on driver version. can ignore.<br/>        caps = options.to_capabilities()<br/>        caps[&quot;acceptInsecureCerts&quot;] = True<br/>    <br/>    <br/>        driver =webdriver.Chrome(ChromeDriverManager().install(),desired_capabilities=caps)<br/>        driver.maximize_window()<br/>    <br/>    <br/>    <br/>        log.info(f&quot;Logging to {data[&#x27;link&#x27;]}&quot;)<br/>    <br/>        driver.get(data[&#x27;link&#x27;])<br/>    <br/>        time.sleep(5)<br/>    <br/>    <br/>    <br/>    <br/>        driver.find_element(By.ID,&quot;userName&quot;).send_keys(data[&#x27;username&#x27;])<br/>        driver.find_element(By.ID,&quot;password&quot;).send_keys(data[&#x27;password&#x27;])<br/>        driver.find_element(By.ID, &quot;Submit&quot;).click()<br/>        time.sleep(5)<br/>        log.info(&quot;Login successfully with MO&quot;)<br/>        driver.switch_to.frame(&quot;showframeLeft&quot;)<br/>        driver.find_element(By.LINK_TEXT,&quot;Prepaid&quot;).click()<br/>        time.sleep(1)<br/>        driver.find_element(By.LINK_TEXT,&quot;Card issuance&quot;).click()<br/>        time.sleep(1)<br/>        driver.find_element(By.LINK_TEXT,&quot;Request for Cards&quot;).click()<br/>    <br/>        time.sleep(1)<br/>        driver.switch_to.default_content()<br/>        driver.switch_to.frame(&quot;showframe&quot;)<br/>        time.sleep(3)<br/>    <br/>        Select(driver.find_element(By.ID,&quot;productId&quot;)).select_by_visible_text(data[&quot;productname&quot;])<br/>        time.sleep(1)<br/>    <br/>        driver.find_element(By.ID,&quot;cardRequest&quot;).send_keys(int(data[&quot;noofcard&quot;]))<br/>    <br/>        fl ,datat  = self.create_corp(data[&quot;productname&quot;],int(data[&quot;noofcard&quot;]),False)<br/>    <br/>        log.info(f&#x27;Generating {int(data[&quot;noofcard&quot;])} cards for {data[&quot;productname&quot;]}&#x27;)<br/>        log.info(f&quot;CSV file location {fl}&quot;)<br/>        driver.find_element(By.ID,&quot;fileName&quot;).send_keys(fl)<br/>        time.sleep(5)<br/>        try:<br/>            if data[&#x27;isPersonalised&#x27;]==&quot;Yes&quot;:<br/>                driver.find_element(By.ID,&quot;isPersonalizedYes&quot;).click()<br/>            elif data[&#x27;isPersonalised&#x27;]==&quot;No&quot;:<br/>                driver.find_element(By.ID,&quot;isPersonalizedNo&quot;).click()<br/>    <br/>        except:<br/>            pass<br/>        driver.find_element(By.ID, &quot;Submit&quot;).click()<br/>        time.sleep(5)<br/>        batch = driver.find_element(By.ID,&quot;myText&quot;).text<br/>        log.info(batch)<br/>    <br/>        temp=batch.split(&quot;:&quot;)<br/>    <br/>        temp1= temp[1].replace(&quot; &quot;,&quot;&quot;).split(&quot;,&quot;)<br/>        print(temp1)<br/>        batchnum=temp1[0]<br/>        res=500<br/>        try:<br/>            res=self.req(apidata[&#x27;card_requisition&#x27;],apidata_timer[&quot;card_requisition&quot;])<br/>        except:<br/>            pass<br/>    <br/>        if res==200:<br/>            print(&quot;Success&quot;)<br/>        else:<br/>            res = self.req(apidata[&#x27;card_requisition&#x27;],apidata_timer[&quot;card_requisition&quot;])<br/>    <br/>        assert res==200<br/>        log.info(f&quot;Card Requistion API call is success with response code {res}&quot;)<br/>        try:<br/>            res = self.req(apidata[&#x27;topup&#x27;],apidata_timer[&quot;topup&quot;])<br/>        except:<br/>            pass<br/>    <br/>        if res == 200:<br/>            print(&quot;Success&quot;)<br/>        else:<br/>            res = self.req(apidata[&#x27;topup&#x27;],apidata_timer[&quot;topup&quot;])<br/>    <br/>        if res==200:<br/>            log.info(f&quot;Top up api successs with resonsecode {res}&quot;)<br/>        time.sleep(5)<br/>        time.sleep(1)<br/>        driver.switch_to.default_content()<br/>        driver.switch_to.frame(&quot;showframeLeft&quot;)<br/>        driver.find_element(By.LINK_TEXT, &quot;View Batch Summary Details&quot;).click()<br/>        time.sleep(2)<br/>    <br/>        driver.switch_to.default_content()<br/>        driver.switch_to.frame(&quot;showframe&quot;)<br/>        time.sleep(3)<br/>        driver.find_element(By.XPATH,&quot;//input[@type=&#x27;text&#x27;]&quot;).send_keys(batchnum)<br/>        time.sleep(2)<br/>        driver.find_element(By.LINK_TEXT,batchnum).click()<br/>        # driver.find_element(By.ID,&quot;batchNo&quot;).send_keys(batchnum)<br/>        # driver.find_element(By.ID, &quot;Submit&quot;).click()<br/>        time.sleep(2)<br/>        bn=driver.find_element(By.ID, &quot;txtHint1&quot;).text<br/>        log.info(bn)<br/>    <br/>        time.sleep(4)<br/>&gt;       assert bn == f&quot;File Processing Finished. , Success Count = {int(data[&#x27;noofcard&#x27;])} , Failure Count = 0&quot;<br/><span class="error">E       AssertionError: assert &#x27;File Process...ure Count = 1&#x27; == &#x27;File Process...ure Count = 0&#x27;</span><br/><span class="error">E         - File Processing Finished. , Success Count = 1 , Failure Count = 0</span><br/><span class="error">E         ?                   ^^^^  -                   ^                   ^</span><br/><span class="error">E         + File Processing Failed , Success Count = 0 , Failure Count = 1</span><br/><span class="error">E         ?                  + ^                     ^                   ^</span><br/><br/>Tests/test_e2e.py:140: AssertionError<br/> ------------------------------Captured stdout call------------------------------ <br/>[{&#x27;card_requisition&#x27;: &#x27;http://172.16.129.36:8087/fileUploadService&#x27;, &#x27;card_generation&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationService&#x27;, &#x27;topup&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationTopUpService&#x27;, &#x27;gprembosa&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationService&#x27;, &#x27;Cardlink&#x27;: &#x27;https://cloud-spring-qa-eastus2-card-management-service.azuremicroservices.io/card/link&#x27;, &#x27;CardActivate&#x27;: &#x27;https://cloud-spring-qa-eastus2-card-management-service.azuremicroservices.io/card/activate&#x27;}, {&#x27;card_requisition&#x27;: 30, &#x27;card_generation&#x27;: 30, &#x27;topup&#x27;: 30, &#x27;gprembosa&#x27;: 30, &#x27;Cardlink&#x27;: 30, &#x27;CardActivate&#x27;: 30}]
+[{&#x27;card_requisition&#x27;: &#x27;http://172.16.129.36:8087/fileUploadService&#x27;, &#x27;card_generation&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationService&#x27;, &#x27;topup&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationTopUpService&#x27;, &#x27;gprembosa&#x27;: &#x27;http://172.16.129.36:8087/cardGenerationService&#x27;, &#x27;Cardlink&#x27;: &#x27;https://cloud-spring-qa-eastus2-card-management-service.azuremicroservices.io/card/link&#x27;, &#x27;CardActivate&#x27;: &#x27;https://cloud-spring-qa-eastus2-card-management-service.azuremicroservices.io/card/activate&#x27;}, {&#x27;card_requisition&#x27;: 30, &#x27;card_generation&#x27;: 30, &#x27;topup&#x27;: 30, &#x27;gprembosa&#x27;: 30, &#x27;Cardlink&#x27;: 30, &#x27;CardActivate&#x27;: 30}]
+[&#x27;BU2701230021&#x27;, &#x27;Pleasenotebatchnumberforfuturereference.Kindlycheckthesummaryaftersometime.&#x27;]
+Success
+Success
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     test_e2e:test_e2e.py:40 Logging to http://172.16.129.36:8080/prepaid_gpr_outlet_gui/?tenantId=tenant1
+INFO     test_e2e:test_e2e.py:53 Login successfully with MO
+INFO     test_e2e:test_e2e.py:73 Generating 1 cards for Paycraft MW
+INFO     test_e2e:test_e2e.py:74 CSV file location /home/sohansagar/PycharmProjects/GPR/Utilities/fn/CR01272023_9793.csv
+INFO     test_e2e:test_e2e.py:88 File uploaded Successfully with Batch Number: BU2701230021 , Please note batch number for future reference. Kindly check the summary after some time.
+INFO     test_e2e:test_e2e.py:107 Card Requistion API call is success with response code 200
+INFO     test_e2e:test_e2e.py:119 Top up api successs with resonsecode 200
+INFO     test_e2e:test_e2e.py:137 File Processing Failed , Success Count = 0 , Failure Count = 1<br/></div></td></tr></tbody></table></body></html>

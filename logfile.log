@@ -1,0 +1,11 @@
+2022-06-30 23:23:40,476 :INFO : test_e2e :Login successfully with MO
+2022-06-30 23:25:01,089 :INFO : test_e2e :Login successfully with MO
+2022-06-30 23:25:21,158 :INFO : test_e2e :File uploaded Successfully with Batch Number: BU3006222320 , Please note batch number for future reference. Kindly check the summary after some time.
+2022-06-30 23:25:34,122 :INFO : test_e2e :File Processing Finished. , Success Count = 1 , Failure Count = 0
+2022-06-30 23:26:19,611 :INFO : test_e2e :Login succesful with HO
+2022-06-30 23:28:10,989 :INFO : test_e2e :login succesfull with MO
+2022-06-30 23:28:53,199 :INFO : test_e2e :Cards acknowledged successfully
+2022-06-30 23:46:33,660 :INFO : test_e2e :Login successfully with MO
+2022-06-30 23:47:37,470 :INFO : test_e2e :Login successfully with MO
+2022-06-30 23:59:44,989 :INFO : test_e2e :Login successfully with MO
+2022-07-01 00:06:08,684 :INFO : test_e2e :Login successfully with MO
